@@ -1,0 +1,117 @@
+//Envio de Dados para tagoIO via MQTT
+//bibliotecas
+#include "DHT.h"
+#include <ArduinoJson.h>
+#include "EspMQTTClient.h"
+
+//define dos pinos do esp
+#define DHT11PIN 16
+#define REED1 12
+#define REED2 4
+
+//configura dhts
+DHT dht(DHT11PIN, DHT11);
+
+//variaveis de temp
+float humi = dht.readHumidity();
+float temp = dht.readTemperature();
+
+//variaivei reed
+int red1 = digitalRead(REED1);
+int red2 = digitalRead(REED2);
+
+//variáveis para Json
+char dht1sen[100];
+char redswt1[100];
+char redswt2[100];
+
+
+//configurações da conexão MQTT
+EspMQTTClient client
+(
+  "Tro - LAB9", //nome da sua rede Wi-Fi
+  "ZuccoTheBest", //senha da sua rede Wi-Fi
+  "mqtt.tago.io",  // MQTT Broker server ip padrão da tago
+  "Default",   // username
+  "4b7e994b-b590-41dd-aa72-27c29d93c8f4",   // Código do Token 
+  "TestClient",     // Client name that uniquely identify your device
+  1883              // The MQTT port, default to 1883. this line can be omitted
+);
+
+void setup (){
+  //configura entradas e saídas
+  pinMode(REED1, INPUT);
+  pinMode(REED2, INPUT);
+  Serial.begin(115200);
+  // inicia o DHT11
+  dht.begin();
+}
+
+// This function is called once everything is connected (Wifi and MQTT)
+// WARNING : YOU MUST IMPLEMENT IT IF YOU USE EspMQTTClient
+void onConnectionEstablished()
+{}
+
+void temperatura(void)
+{
+  humi = dht.readHumidity();
+  temp = dht.readTemperature();
+  Serial.print("Temperature sensor int: ");
+  Serial.print(temp);
+  Serial.print("ºC ");
+  Serial.print("Humidity: ");
+  Serial.println(humi);
+}
+void fimdecurso(void)
+{
+  red1 = digitalRead(REED1);
+  red2 = digitalRead(REED2);
+
+  Serial.print("saída do reed1: ");
+  Serial.println(red1);
+  Serial.print("saída do reed2: ");
+  Serial.println(red2);
+}
+void loop()
+{
+ // StaticJsonDocument<300> umidade;
+  
+ // char json[] = client.subscribe("info/umidad", umidad);
+  //JsonObject& root = umidade.parseObject(json);
+//atribui valores aleatórios para variável 
+  temperatura();
+  fimdecurso();
+
+//arquivo Json
+  
+  StaticJsonDocument<300> sensor1;
+
+  sensor1["variable"] = "Temperatura_INT";
+  sensor1["value"] = temp;
+  
+  serializeJson(sensor1, dht1sen);
+
+  StaticJsonDocument<300> leitor1;
+
+  leitor1["variable"] = "Janela";
+  leitor1["value"] = red1;
+
+  serializeJson(leitor1, redswt1 );
+  
+  StaticJsonDocument<300> leitor2;
+
+  leitor2["variable"] = "Porta";
+  leitor2["value"] = red2;
+
+  serializeJson(leitor2, redswt2);
+  
+//envio de dados
+
+  // You can activate the retain flag by setting the third parameter to true
+  client.publish("info/dht1sen", dht1sen);
+  client.publish("info/porta1", redswt1);
+  client.publish("info/porta2", redswt2);
+  delay(200);
+
+  client.loop();
+}
