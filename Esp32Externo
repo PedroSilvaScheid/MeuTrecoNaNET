@@ -1,0 +1,84 @@
+//Envio de Dados para tagoIO via MQTT
+//bibliotecas
+#include "DHT.h"
+#include <ArduinoJson.h>
+#include "EspMQTTClient.h"
+
+//define dos pinos do esp
+#define DHT112PIN 16
+
+//configura dhts
+DHT dht2(DHT112PIN, DHT11);
+
+//variaveis de temp
+float humi2 = dht2.readHumidity();
+float temp2 = dht2.readTemperature();
+
+//variáveis para Json
+char umidad[100];
+char dht2sen[100];
+
+//configurações da conexão MQTT
+EspMQTTClient client
+(
+  "Tro - LAB9", //nome da sua rede Wi-Fi
+  "ZuccoTheBest", //senha da sua rede Wi-Fi
+  "mqtt.tago.io",  // MQTT Broker server ip padrão da tago
+  "Default",   // username
+  "4b7e994b-b590-41dd-aa72-27c29d93c8f4",   // Código do Token 
+  "TestClient",     // Client name that uniquely identify your device
+  1883              // The MQTT port, default to 1883. this line can be omitted
+);
+
+void setup (){
+  //configura entradas e saídas
+  Serial.begin(115200);
+  // inicia o DHT11
+  dht2.begin();
+}
+
+// This function is called once everything is connected (Wifi and MQTT)
+// WARNING : YOU MUST IMPLEMENT IT IF YOU USE EspMQTTClient
+void onConnectionEstablished()
+{}
+
+void temperatura(void)
+{
+  humi2 = dht2.readHumidity();
+  temp2 = dht2.readTemperature();
+  Serial.print("Temperature sensor ext: ");
+  Serial.print(temp2);
+  Serial.print("ºC ");
+  Serial.print("Humidity: ");
+  Serial.println(humi2);
+}
+
+void loop()
+{
+
+//atribui valores aleatórios para variável 
+  temperatura();
+
+//arquivo Json
+
+  StaticJsonDocument<300> umidadeE;
+
+  umidadeE["variable"] = "Umidade_Ext"; 
+  umidadeE["value"] = humi2;
+
+  serializeJson(umidadeE, umidad);
+  
+  StaticJsonDocument<300> sensor2;
+
+  sensor2["variable"] = "Temperatura_EXT";
+  sensor2["value"] = temp2;
+
+  serializeJson(sensor2, dht2sen);
+//envio de dados
+
+  client.publish("info/umidad", umidad); // You can activate the retain flag by setting the third parameter to true
+  client.publish("info/dht2sen", dht2sen);
+  delay(200);
+
+  client.loop();
+}
